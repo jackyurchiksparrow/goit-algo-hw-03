@@ -29,7 +29,7 @@ def get_days_from_today(date_str: str) -> int:
     return False                                                    # False is the param is wrong
 
 
-def get_number_tickets(min_b: int, max_b: int, quantity: int):
+def get_numbers_ticket(min_b: int, max_b: int, quantity: int):
     """Generates `quantity` pieces of unique numbers between `min_b` and `max_b`
 
     Args:
@@ -50,7 +50,8 @@ def get_number_tickets(min_b: int, max_b: int, quantity: int):
         print(f"min_b, max_b and quantity must be in the {allowed_range}")
         return []
 
-    if quantity > max(specified_range):
+    # Fixed into using length
+    if quantity > len(specified_range):
         print(f"You can't expect {quantity} unique tickets in a {specified_range}, can't you?")
         return []
 
@@ -64,15 +65,16 @@ def get_number_tickets(min_b: int, max_b: int, quantity: int):
 
 
 def normalize_phone(phone_number: str):
-    """Normalizes a string phone number into the Ukrainian international format (+380...) no spaces
-        (assumes "+" can't be in the middle of the string)
+    """Removes all extra syllables from the number and adds "+" if needed
+        If the number is Ukrainian (classified with: starts with 380, 80 or 0), ensures the proper Ukrainian format,
+        otherwise just remove the extra syllables and adds the "+"
 
     Args:
         phone_number: str
             a string representing a phone numbers
 
     Returns:
-        raises ValueError if the format is misspecified; logs if the number is of wrong length
+        same phone number if not a valid Ukrainian number
         normalized phone number into the Ukrainian international format (+380...) no spaces otherwise
     """
     # ----- 1. Check param type -----
@@ -81,21 +83,24 @@ def normalize_phone(phone_number: str):
 
     # ----- 2. Remove white spaces, remove extra characters -----
     phone_number = phone_number.strip()
-    phone_number = re.sub(r"[^\+0-9]", "", phone_number)    # remove everything BUT (^) '+' and numbers
+    phone_number_parsed = re.sub(r"[^\+0-9]", "", phone_number)    # remove everything BUT (^) '+' and numbers
 
-    # no '+' in the beginning -> add 
-    if phone_number[0] != "+":
-        phone_number = "+" + phone_number
+    # ----- 3. FIX: Ukrainian number logic -----
+    if phone_number_parsed.startswith('380'):
+        phone_number_parsed = '+' + phone_number_parsed
+    elif phone_number_parsed.startswith('80'):
+        phone_number_parsed = '+3' + phone_number_parsed
+    elif phone_number_parsed.startswith('0'):
+        phone_number_parsed = '+38' + phone_number_parsed
+    elif not phone_number_parsed.startswith('+'):
+        phone_number_parsed = '+' + phone_number_parsed
+    else:
+        # we don't check other countries' numbers based on the task, we only remove the extra characters and add the "+"
+        # if we want, we may use the phonenumbers's .parse() and .is_valid_number() if need to and return the status
+        pass
 
-    # no '38' after the added '+' -> add
-    if phone_number[1:3] != "38": 
-        phone_number = phone_number[0] + "38" + phone_number[1:]
+    return phone_number_parsed
 
-    # wrong length -> incorrect number provided
-    if len(phone_number) != 13:
-        print(f"Attention! The number's format might be incorrect in {phone_number}")
-
-    return phone_number
 
 
 
@@ -111,12 +116,19 @@ if __name__ == "__main__":
     print(f"{today} - 2066-12-11 = {get_days_from_today(str(today))}")
 
     # ----- 2. Days between today and the specified date -----
+    # --- FIX + test cases listed in the comment ---
     print("---------- 2nd task ----------")
-    print("Ваші лотерейні числа [1, 49] (6):", get_number_tickets(1, 49, 6))
-    print("Ваші лотерейні числа [5, 10] (4):", get_number_tickets(5, 10, 4))
+    print("Ваші лотерейні числа [-10, 10] (5):", get_numbers_ticket(-10,10,5))
+    print("Ваші лотерейні числа [1000, 1200] (10):", get_numbers_ticket(1000,1200,10))
+    print("Ваші лотерейні числа [10, 4] (5):", get_numbers_ticket(10,4,5))
+    print("Ваші лотерейні числа [10, 14] (6):", get_numbers_ticket(10,14,6))
+
+    print("Ваші лотерейні числа [1, 49] (6):", get_numbers_ticket(10,14,6))
+    print("Ваші лотерейні числа [5, 10] (4):", get_numbers_ticket(5, 10, 4))
 
     # ----- 3. Days between today and the specified date -----
     print("---------- 3rd task ----------")
+
     raw_numbers = [
         "067\\t123 4567",
         "(095) 234-5678\\n",
@@ -127,6 +139,9 @@ if __name__ == "__main__":
         "(050)8889900",
         "38050-111-22-22",
         "38050 111 22 11   ",
+        "+90 532 456 78 90",
+        "90 532 456 78 90",
+        "532 456 78 90"
     ]
 
     print("Нормалізовані номери телефонів для SMS-розсилки:", [normalize_phone(num) for num in raw_numbers])
